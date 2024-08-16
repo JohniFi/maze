@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug)]
 struct Maze {
     map: Vec<Vec<bool>>, // false represents walls, true represents floor
@@ -5,9 +7,9 @@ struct Maze {
     height: usize,
     start_x: usize,
     start_y: usize,
-    
-    visited: Vec<Vec<bool>>,
-    path_map: Vec<Vec<bool>>,
+
+    visited: Option<Vec<Vec<bool>>>,
+    path_map: Option<Vec<Vec<bool>>>,
 }
 
 impl Maze {
@@ -39,7 +41,6 @@ impl Maze {
             row.resize(width, false)
         }
 
-
         if let Some(row_vec) = map.get(start_y) {
             if let Some(&value) = row_vec.get(start_x) {
                 if !value {
@@ -58,11 +59,40 @@ impl Maze {
             height,
             start_x,
             start_y,
-            
-            visited: vec![vec![false; width]; height],
-            path_map: vec![vec![false; width]; height],
+
+            visited: None, //vec![vec![false; width]; height,
+            path_map: None,
         })
-        
+    }
+}
+
+impl fmt::Display for Maze {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+
+        for (y, row) in self.map.iter().enumerate() {
+            for (x, cell) in row.iter().enumerate() {
+                if x == self.start_x && y == self.start_y {
+                    s.push(Maze::OUTPUT_START);
+                    continue;
+                } else if let Some(row) = self.path_map.as_ref().and_then(|map| map.get(y)) {
+                    if let Some(true) = row.get(x) {
+                        s.push(Maze::OUTPUT_PATH);
+                        continue;
+                    }
+                } else if let Some(row) = self.map.get(y) {
+                    if let Some(&value) = row.get(x) {
+                        match value {
+                            true => s.push(Maze::OUTPUT_FLOOR),
+                            false => s.push(Maze::OUTPUT_WALL),
+                        }
+                    }
+                }
+            }
+            s.push('\n');
+        }
+
+        write!(f, "{}", s)
     }
 }
 
@@ -77,5 +107,5 @@ fn main() {
 
     let test_maze = Maze::new(original, 1, 1);
 
-    println!("test_maze: {test_maze:?}");
+    println!("test_maze: \n{}", test_maze.expect("no maze here"));
 }
