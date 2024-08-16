@@ -71,23 +71,24 @@ impl fmt::Display for Maze {
         let mut s = String::new();
 
         for (y, row) in self.map.iter().enumerate() {
-            for (x, cell) in row.iter().enumerate() {
-                if x == self.start_x && y == self.start_y {
-                    s.push(Maze::OUTPUT_START);
-                    continue;
-                } else if let Some(row) = self.path_map.as_ref().and_then(|map| map.get(y)) {
-                    if let Some(true) = row.get(x) {
-                        s.push(Maze::OUTPUT_PATH);
-                        continue;
+            for (x, &cell) in row.iter().enumerate() {
+                let symbol = if x == self.start_x && y == self.start_y {
+                    Maze::OUTPUT_START
+                } else if self
+                    .path_map
+                    .as_ref()
+                    .and_then(|map| map.get(y))
+                    .and_then(|row| row.get(x))
+                    == Some(&true)
+                {
+                    Maze::OUTPUT_PATH
+                } else {
+                    match cell {
+                        true => Maze::OUTPUT_FLOOR,
+                        false => Maze::OUTPUT_WALL,
                     }
-                } else if let Some(row) = self.map.get(y) {
-                    if let Some(&value) = row.get(x) {
-                        match value {
-                            true => s.push(Maze::OUTPUT_FLOOR),
-                            false => s.push(Maze::OUTPUT_WALL),
-                        }
-                    }
-                }
+                };
+                s.push(symbol);
             }
             s.push('\n');
         }
