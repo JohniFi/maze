@@ -2,6 +2,7 @@ use std::fmt;
 
 #[derive(Debug)]
 struct Maze {
+    /// `false` represents walls, `true` represents floor
     map: Vec<Vec<bool>>, // false represents walls, true represents floor
     width: usize,
     height: usize,
@@ -13,9 +14,11 @@ struct Maze {
 }
 
 impl Maze {
-    // Character for walls: 'X'
+    // TODO: refactor const values into Enum
+
+    /// Character for walls: 'X'
     const INPUT_WALL: char = 'X';
-    // Character for floor: ' '
+    /// Character for floor: ' '
     const INPUT_FLOOR: char = ' ';
 
     const OUTPUT_WALL: char = '⬜';
@@ -24,7 +27,6 @@ impl Maze {
     const OUTPUT_PATH: char = '◽';
 
     /// Creates a new [`Maze`].
-
     fn new(map: Vec<Vec<bool>>, start_x: usize, start_y: usize) -> Result<Maze, String> {
         let width = map.iter().map(|row| row.len()).max().unwrap_or_default();
 
@@ -64,6 +66,31 @@ impl Maze {
             path_map: None,
         })
     }
+
+    fn new_from_str_array(map: Vec<&str>, start_x: usize, start_y: usize) -> Result<Maze, String> {
+        let grid: Result<Vec<Vec<bool>>, String> = map
+            .iter()
+            .map(|&row| {
+                row.chars()
+                    .map(|c| match c {
+                        Maze::INPUT_FLOOR => Ok(true), // ' ' -> true
+                        Maze::INPUT_WALL => Ok(false), // 'X' -> false
+                        _ => Err(format!("Unknown character '{}' in provided maze data!", c)),
+                    })
+                    .collect::<Result<Vec<bool>, String>>() // Collect to Result<Vec<bool>, String>
+            })
+            .collect(); // Collect to Result<Vec<Vec<bool>>, String>
+
+        // propagate any errors
+        let grid = grid?;
+
+        Maze::new(grid, start_x, start_y)
+    }
+
+    fn new_from_str(map: &str, start_x: usize, start_y: usize) -> Result<Maze, String> {
+        let array_map = map.split('\n').collect::<Vec<&str>>();
+        Maze::new_from_str_array(array_map, start_x, start_y)
+    }
 }
 
 impl fmt::Display for Maze {
@@ -100,13 +127,37 @@ impl fmt::Display for Maze {
 fn main() {
     println!("Hello, world!");
 
-    let original: Vec<Vec<bool>> = vec![
+    let input: Vec<Vec<bool>> = vec![
         vec![true, false, true],
         vec![false, true, false],
         vec![true, true, false],
     ];
+    let test_maze = Maze::new(input, 1, 1);
+    println!(
+        "test_maze: \n{}",
+        test_maze.expect("Error while creating maze!")
+    );
 
-    let test_maze = Maze::new(original, 1, 1);
+    let input_str_array: Vec<&str> = vec![" X ", "X X", "  X"];
+    let test_maze2 = Maze::new_from_str_array(input_str_array, 1, 1);
+    println!(
+        "test_maze: \n{}",
+        test_maze2.expect("Error while creating maze!")
+    );
 
-    println!("test_maze: \n{}", test_maze.expect("no maze here"));
+    let input_str = "XXX  XX   \n".to_owned()
+        + "X     X  X\n"
+        + "X XX  XX X\n"
+        + "X   XXX   \n"
+        + "X    X  XX\n"
+        + "XX  XX  X \n"
+        + "X  X  X X \n"
+        + "X   X   XX\n"
+        + "X XXXX XXX\n"
+        + "XX  XX  XX";
+    let test_maze3 = Maze::new_from_str(&input_str, 4, 4);
+    println!(
+        "test_maze: \n{}",
+        test_maze3.expect("Error while creating maze!")
+    );
 }
