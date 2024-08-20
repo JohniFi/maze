@@ -1,5 +1,9 @@
 use std::fmt;
 
+pub trait AsChar {
+    fn as_char(&self) -> char;
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 enum MazeCell {
     #[default]
@@ -7,14 +11,16 @@ enum MazeCell {
     Floor(FloorType),
 }
 
-impl MazeCell {
+impl AsChar for MazeCell {
     fn as_char(&self) -> char {
         match self {
             MazeCell::Wall => '⬜',
             MazeCell::Floor(f) => f.as_char(),
         }
     }
+}
 
+impl MazeCell {
     fn from_bool(value: bool) -> Self {
         if value {
             MazeCell::Floor(FloorType::default())
@@ -32,7 +38,7 @@ enum FloorType {
     Path,
 }
 
-impl FloorType {
+impl AsChar for FloorType {
     fn as_char(&self) -> char {
         match self {
             FloorType::Floor => '⬛',
@@ -54,6 +60,12 @@ struct Maze {
     visited: Option<Vec<Vec<bool>>>,
 }
 
+trait Solvable {
+    fn solve(&mut self) -> Result<bool, String>;
+
+    fn solve_from(&mut self, x: usize, y: usize) -> Result<bool, String>;
+}
+
 impl Maze {
     /// Character for walls: 'X'
     const INPUT_WALL: char = 'X';
@@ -62,9 +74,8 @@ impl Maze {
 
     /// Creates a new [`Maze`].
     fn new(mut map: Vec<Vec<MazeCell>>, start_x: usize, start_y: usize) -> Result<Maze, String> {
-        let width = map.iter().map(|row| row.len()).max().unwrap_or_default();
-
         let height = map.len();
+        let width = map.iter().map(|row| row.len()).max().unwrap_or_default();
 
         if height < 3 || width < 3 {
             return Err("Maze is too small. Minimum 3x3".to_string());
@@ -72,6 +83,7 @@ impl Maze {
 
         // make sure all rows are the same length
         for row in map.iter_mut() {
+            // fill shorter rows with default MazeCell (Wall)
             row.resize(width, MazeCell::default())
         }
 
@@ -93,7 +105,6 @@ impl Maze {
             height,
             start_x,
             start_y,
-
             visited: None,
         })
     }
@@ -116,13 +127,13 @@ impl Maze {
             .map(|&row| {
                 row.chars()
                     .map(|c| match c {
-                        Maze::INPUT_FLOOR => Ok(MazeCell::Floor(FloorType::default())), // ' ' -> true
-                        Maze::INPUT_WALL => Ok(MazeCell::Wall), // 'X' -> false
+                        Maze::INPUT_FLOOR => Ok(MazeCell::Floor(FloorType::default())),
+                        Maze::INPUT_WALL => Ok(MazeCell::Wall),
                         _ => Err(format!("Unknown character '{}' in provided maze data!", c)),
                     })
-                    .collect::<Result<Vec<MazeCell>, String>>() // Collect to Result<Vec<bool>, String>
+                    .collect::<Result<Vec<MazeCell>, String>>()
             })
-            .collect(); // Collect to Result<Vec<Vec<bool>>, String>
+            .collect();
 
         // propagate any errors
         let grid = grid?;
@@ -134,7 +145,29 @@ impl Maze {
         let array_map = map.split('\n').collect::<Vec<&str>>();
         Maze::new_from_str_array(array_map, start_x, start_y)
     }
+}
 
+impl fmt::Display for Maze {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+
+        for (y, row) in self.map.iter().enumerate() {
+            for (x, cell) in row.iter().enumerate() {
+                if x == self.start_x && y == self.start_y {
+                    // start position
+                    s.push(FloorType::Start.as_char())
+                } else {
+                    s.push(cell.as_char())
+                }
+            }
+            s.push('\n');
+        }
+
+        write!(f, "{}", s)
+    }
+}
+
+impl Solvable for Maze {
     fn solve(&mut self) -> Result<bool, String> {
         self.visited = Some(vec![vec![false; self.width]; self.height]);
         self.solve_from(self.start_x, self.start_y)
@@ -173,7 +206,7 @@ impl Maze {
                 (x, y + 1),
             ] {
                 if self.solve_from(next_x, next_y)? {
-                    //*cell = MazeCell::Floor(FloorType::Path);  // here not possible because of borrow checker
+                    //*cell = MazeCell::Floor(FloorType::Path);  // NOTE: here not possible because of borrow checker
 
                     if let Some(cell) = self.map.get_mut(y).and_then(|row| row.get_mut(x)) {
                         *cell = MazeCell::Floor(FloorType::Path);
@@ -187,25 +220,6 @@ impl Maze {
         } else {
             Err(format!("Starting position ({}, {}) out of bounds", x, y))
         }
-    }
-}
-
-impl fmt::Display for Maze {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut s = String::new();
-
-        for (y, row) in self.map.iter().enumerate() {
-            for (x, cell) in row.iter().enumerate() {
-                if x == self.start_x && y == self.start_y {
-                    s.push(FloorType::Start.as_char())
-                } else {
-                    s.push(cell.as_char())
-                }
-            }
-            s.push('\n');
-        }
-
-        write!(f, "{}", s)
     }
 }
 
