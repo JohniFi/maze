@@ -175,7 +175,9 @@ impl fmt::Display for Maze {
                 };
                 s.push(symbol);
             }
-            s.push('\n');
+            if y < self.height - 1 {
+                s.push('\n');
+            }
         }
 
         write!(f, "{}", s)
@@ -183,39 +185,69 @@ impl fmt::Display for Maze {
 }
 
 fn main() {
-    let input: Vec<Vec<bool>> = vec![
-        vec![true, false, true],
-        vec![false, true, false],
-        vec![true, true, false],
-    ];
-    let test_maze = Maze::new(input, 1, 1);
-    println!(
-        "test_maze: \n{}",
-        test_maze.expect("Error while creating maze!")
+    let mut mazes = Vec::new();
+
+    mazes.push(
+        Maze::new(
+            vec![
+                vec![true, false, true],
+                vec![false, true, false],
+                vec![true, true, false],
+            ],
+            1,
+            1,
+        )
+        .expect("Error while creating maze!"),
     );
 
-    let input_str_array: Vec<&str> = vec![" X ", "X X", "  X"];
-    let mut test_maze2 =
-        Maze::new_from_str_array(input_str_array, 1, 1).expect("Error while creating maze!");
-    println!("test_maze: \n{}", test_maze2);
-    let _ = test_maze2.solve();
+    mazes.push(
+        Maze::new_from_str_array(vec![" X ", "X X", "  X"], 1, 1)
+            .expect("Error while creating maze!"),
+    );
 
-    println!("test_maze: \n{}", test_maze2);
+    mazes.push(
+        Maze::new_from_str(
+            &("XXX  XX   \n".to_owned()
+                + "X     X  X\n"
+                + "X XX  XX X\n"
+                + "X   XXX   \n"
+                + "X    X  XX\n"
+                + "XX  XX  X \n"
+                + "X  X  X X \n"
+                + "X   X   XX\n"
+                + "X XXXX XXX\n"
+                + "XX  XX  XX"),
+            4,
+            4,
+        )
+        .expect("Error while creating maze!"),
+    );
 
-    let input_str = "XXX  XX   \n".to_owned()
-        + "X     X  X\n"
-        + "X XX  XX X\n"
-        + "X   XXX   \n"
-        + "X    X  XX\n"
-        + "XX  XX  X \n"
-        + "X  X  X X \n"
-        + "X   X   XX\n"
-        + "X XXXX XXX\n"
-        + "XX  XX  XX";
-    let mut test_maze3 = Maze::new_from_str(&input_str, 4, 4).expect("Error while creating maze!");
-    println!("test_maze: \n{}", test_maze3);
+    mazes.push(
+        Maze::new_from_str(
+            &("XXXXXXXXX\n".to_owned()
+                + "XXXXXXXXX\n"
+                + "XXXXXXXXX\n"
+                + "XXX   XXX\n"
+                + "XXX   XXX\n"
+                + "XXX   XXX\n"
+                + "XXX   XXX\n"
+                + "XXXXXXXXX\n"
+                + "XXXXXXXXX\n"
+                + "XXXXXXXXX"),
+            4,
+            4,
+        )
+        .expect("Error while creating maze!"),
+    );
 
-    test_maze3.solve();
+    for mut maze in mazes {
+        println!("Maze:\n{}", maze);
 
-    println!("test_maze: \n{}", test_maze3);
+        if let Ok(true) = maze.solve() {
+            println!("Solution:\n{}", maze);
+        } else {
+            println!("No solution for this maze");
+        }
+    }
 }
