@@ -63,8 +63,6 @@ mod maze {
 
     pub trait Solvable {
         fn solve(&mut self) -> Result<bool, String>;
-
-        fn solve_from(&mut self, x: usize, y: usize) -> Result<bool, String>;
     }
 
     impl Maze {
@@ -154,33 +152,6 @@ mod maze {
             let array_map = map.split('\n').collect::<Vec<&str>>();
             Maze::new_from_str_array(array_map, start_x, start_y)
         }
-    }
-
-    impl fmt::Display for Maze {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let mut s = String::new();
-
-            for (y, row) in self.map.iter().enumerate() {
-                for (x, cell) in row.iter().enumerate() {
-                    if x == self.start_x && y == self.start_y {
-                        // start position
-                        s.push(FloorType::Start.as_char())
-                    } else {
-                        s.push(cell.as_char())
-                    }
-                }
-                s.push('\n');
-            }
-
-            write!(f, "{}", s)
-        }
-    }
-
-    impl Solvable for Maze {
-        fn solve(&mut self) -> Result<bool, String> {
-            self.visited = Some(vec![vec![false; self.width]; self.height]);
-            self.solve_from(self.start_x, self.start_y)
-        }
 
         fn solve_from(&mut self, x: usize, y: usize) -> Result<bool, String> {
             if let (Some(cell), Some(visited)) = (
@@ -229,6 +200,33 @@ mod maze {
             } else {
                 Err(format!("Starting position ({}, {}) out of bounds", x, y))
             }
+        }
+    }
+
+    impl fmt::Display for Maze {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let mut s = String::new();
+
+            for (y, row) in self.map.iter().enumerate() {
+                for (x, cell) in row.iter().enumerate() {
+                    if x == self.start_x && y == self.start_y {
+                        // start position
+                        s.push(FloorType::Start.as_char())
+                    } else {
+                        s.push(cell.as_char())
+                    }
+                }
+                s.push('\n');
+            }
+
+            write!(f, "{}", s)
+        }
+    }
+
+    impl Solvable for Maze {
+        fn solve(&mut self) -> Result<bool, String> {
+            self.visited = Some(vec![vec![false; self.width]; self.height]);
+            self.solve_from(self.start_x, self.start_y)
         }
     }
 }
