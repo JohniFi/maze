@@ -1,26 +1,35 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 enum MazeCell {
+    #[default]
     Wall,
-    Floor,
-    Start,
-    Path,
-}
-
-impl Default for MazeCell {
-    fn default() -> Self {
-        Self::Wall
-    }
+    Floor(FloorType),
 }
 
 impl MazeCell {
     fn as_char(&self) -> char {
         match self {
             MazeCell::Wall => '⬜',
-            MazeCell::Floor => '⬛',
-            MazeCell::Start => '❌',
-            MazeCell::Path => '👣',
+            MazeCell::Floor(f) => f.as_char(),
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+enum FloorType {
+    #[default]
+    Floor,
+    Start,
+    Path,
+}
+
+impl FloorType {
+    fn as_char(&self) -> char {
+        match self {
+            FloorType::Floor => '⬛',
+            FloorType::Start => '❌',
+            FloorType::Path => '👣',
         }
     }
 }
@@ -176,7 +185,7 @@ impl fmt::Display for Maze {
         for (y, row) in self.map.iter().enumerate() {
             for (x, &cell) in row.iter().enumerate() {
                 let symbol = if x == self.start_x && y == self.start_y {
-                    MazeCell::Start.as_char()
+                    MazeCell::Floor(FloorType::Start).as_char()
                 } else if self
                     .path_map
                     .as_ref()
@@ -184,10 +193,10 @@ impl fmt::Display for Maze {
                     .and_then(|row| row.get(x))
                     == Some(&true)
                 {
-                    MazeCell::Path.as_char()
+                    MazeCell::Floor(FloorType::Path).as_char()
                 } else {
                     match cell {
-                        true => MazeCell::Floor.as_char(),
+                        true => MazeCell::Floor(FloorType::default()).as_char(),
                         false => MazeCell::Wall.as_char(),
                     }
                 };
