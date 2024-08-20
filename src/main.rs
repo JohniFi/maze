@@ -24,10 +24,10 @@ impl Maze {
     const OUTPUT_WALL: char = '⬜';
     const OUTPUT_FLOOR: char = '⬛';
     const OUTPUT_START: char = '❌';
-    const OUTPUT_PATH: char = '◽';
+    const OUTPUT_PATH: char = '👣';
 
     /// Creates a new [`Maze`].
-    fn new(map: Vec<Vec<bool>>, start_x: usize, start_y: usize) -> Result<Maze, String> {
+    fn new(mut map: Vec<Vec<bool>>, start_x: usize, start_y: usize) -> Result<Maze, String> {
         let width = map.iter().map(|row| row.len()).max().unwrap_or_default();
 
         let height = map.len();
@@ -35,8 +35,6 @@ impl Maze {
         if height < 3 || width < 3 {
             return Err("Maze is too small. Minimum 3x3".to_string());
         }
-
-        let mut map = map.to_vec();
 
         // make sure all rows are the same length
         for row in map.iter_mut() {
@@ -62,7 +60,7 @@ impl Maze {
             start_x,
             start_y,
 
-            visited: None, //vec![vec![false; width]; height,
+            visited: None,
             path_map: None,
         })
     }
@@ -90,6 +88,66 @@ impl Maze {
     fn new_from_str(map: &str, start_x: usize, start_y: usize) -> Result<Maze, String> {
         let array_map = map.split('\n').collect::<Vec<&str>>();
         Maze::new_from_str_array(array_map, start_x, start_y)
+    }
+
+    fn solve(&mut self) -> Result<bool, String> {
+        self.path_map = Some(vec![vec![false; self.width]; self.height]);
+        self.visited = Some(vec![vec![false; self.width]; self.height]);
+        self.solve_from(self.start_x, self.start_y)
+    }
+
+    fn solve_from(&mut self, x: usize, y: usize) -> Result<bool, String> {
+        if let (Some(&value), Some(visited), Some(path)) = (
+            self.map.get(y).and_then(|row| row.get(x)),
+            self.visited
+                .as_mut()
+                .and_then(|v| v.get_mut(y).and_then(|row| row.get_mut(x))),
+            self.path_map
+                .as_mut()
+                .and_then(|v| v.get_mut(y).and_then(|row| row.get_mut(x))),
+        ) {
+            if !value {
+                // on Wall
+                return Ok(false);
+            }
+            if *visited {
+                // already visited
+                return Ok(false);
+            }
+
+            *visited = true;
+
+            if x == 0 || x >= self.width - 1 || y == 0 || y >= self.height - 1 {
+                // found edge (finish)
+                *path = true;
+                return Ok(true);
+            }
+
+            // Try to solve from neighboring positions
+            for (next_x, next_y) in [
+                (x.wrapping_sub(1), y),
+                (x + 1, y),
+                (x, y.wrapping_sub(1)),
+                (x, y + 1),
+            ] {
+                if self.solve_from(next_x, next_y)? {
+                    //*path = true;  // here not possible because of borrow checker
+                    if let Some(p) = self
+                        .path_map
+                        .as_mut()
+                        .and_then(|v| v.get_mut(y).and_then(|row| row.get_mut(x)))
+                    {
+                        *p = true;
+                        return Ok(true);
+                    } else {
+                        return Err(format!("Starting position ({}, {}) out of bounds", x, y));
+                    }
+                }
+            }
+            Ok(false)
+        } else {
+            Err(format!("Starting position ({}, {}) out of bounds", x, y))
+        }
     }
 }
 
@@ -125,8 +183,6 @@ impl fmt::Display for Maze {
 }
 
 fn main() {
-    println!("Hello, world!");
-
     let input: Vec<Vec<bool>> = vec![
         vec![true, false, true],
         vec![false, true, false],
@@ -139,11 +195,12 @@ fn main() {
     );
 
     let input_str_array: Vec<&str> = vec![" X ", "X X", "  X"];
-    let test_maze2 = Maze::new_from_str_array(input_str_array, 1, 1);
-    println!(
-        "test_maze: \n{}",
-        test_maze2.expect("Error while creating maze!")
-    );
+    let mut test_maze2 =
+        Maze::new_from_str_array(input_str_array, 1, 1).expect("Error while creating maze!");
+    println!("test_maze: \n{}", test_maze2);
+    let _ = test_maze2.solve();
+
+    println!("test_maze: \n{}", test_maze2);
 
     let input_str = "XXX  XX   \n".to_owned()
         + "X     X  X\n"
@@ -155,9 +212,10 @@ fn main() {
         + "X   X   XX\n"
         + "X XXXX XXX\n"
         + "XX  XX  XX";
-    let test_maze3 = Maze::new_from_str(&input_str, 4, 4);
-    println!(
-        "test_maze: \n{}",
-        test_maze3.expect("Error while creating maze!")
-    );
+    let mut test_maze3 = Maze::new_from_str(&input_str, 4, 4).expect("Error while creating maze!");
+    println!("test_maze: \n{}", test_maze3);
+
+    test_maze3.solve();
+
+    println!("test_maze: \n{}", test_maze3);
 }
