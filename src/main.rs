@@ -1,6 +1,31 @@
 use std::fmt;
 
 #[derive(Debug)]
+enum MazeCell {
+    Wall,
+    Floor,
+    Start,
+    Path,
+}
+
+impl Default for MazeCell {
+    fn default() -> Self {
+        Self::Wall
+    }
+}
+
+impl MazeCell {
+    fn as_char(&self) -> char {
+        match self {
+            MazeCell::Wall => '⬜',
+            MazeCell::Floor => '⬛',
+            MazeCell::Start => '❌',
+            MazeCell::Path => '👣',
+        }
+    }
+}
+
+#[derive(Debug)]
 struct Maze {
     /// `false` represents walls, `true` represents floor
     map: Vec<Vec<bool>>, // false represents walls, true represents floor
@@ -14,17 +39,10 @@ struct Maze {
 }
 
 impl Maze {
-    // TODO: refactor const values into Enum
-
     /// Character for walls: 'X'
     const INPUT_WALL: char = 'X';
     /// Character for floor: ' '
     const INPUT_FLOOR: char = ' ';
-
-    const OUTPUT_WALL: char = '⬜';
-    const OUTPUT_FLOOR: char = '⬛';
-    const OUTPUT_START: char = '❌';
-    const OUTPUT_PATH: char = '👣';
 
     /// Creates a new [`Maze`].
     fn new(mut map: Vec<Vec<bool>>, start_x: usize, start_y: usize) -> Result<Maze, String> {
@@ -54,7 +72,7 @@ impl Maze {
         }
 
         Ok(Self {
-            map, // false represents walls, true represents floor
+            map,
             width,
             height,
             start_x,
@@ -158,7 +176,7 @@ impl fmt::Display for Maze {
         for (y, row) in self.map.iter().enumerate() {
             for (x, &cell) in row.iter().enumerate() {
                 let symbol = if x == self.start_x && y == self.start_y {
-                    Maze::OUTPUT_START
+                    MazeCell::Start.as_char()
                 } else if self
                     .path_map
                     .as_ref()
@@ -166,11 +184,11 @@ impl fmt::Display for Maze {
                     .and_then(|row| row.get(x))
                     == Some(&true)
                 {
-                    Maze::OUTPUT_PATH
+                    MazeCell::Path.as_char()
                 } else {
                     match cell {
-                        true => Maze::OUTPUT_FLOOR,
-                        false => Maze::OUTPUT_WALL,
+                        true => MazeCell::Floor.as_char(),
+                        false => MazeCell::Wall.as_char(),
                     }
                 };
                 s.push(symbol);
