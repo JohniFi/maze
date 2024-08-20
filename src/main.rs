@@ -90,17 +90,7 @@ mod maze {
                 row.resize(width, MazeCell::default())
             }
 
-            if let Some(row_vec) = map.get(start_y) {
-                if let Some(value) = row_vec.get(start_x) {
-                    if value == &MazeCell::Wall {
-                        return Err("Starting position must not be on a wall!".to_string());
-                    }
-                } else {
-                    return Err("start_x out of bounds!".to_string());
-                }
-            } else {
-                return Err("start_y out of bounds!".to_string());
-            }
+            Self::validate_start(&map, start_x, start_y)?;
 
             Ok(Self {
                 map,
@@ -201,6 +191,55 @@ mod maze {
                 Err(format!("Starting position ({}, {}) out of bounds", x, y))
             }
         }
+
+        pub fn width(&self) -> usize {
+            self.width
+        }
+
+        pub fn height(&self) -> usize {
+            self.height
+        }
+
+        pub fn start_x(&self) -> usize {
+            self.start_x
+        }
+
+        pub fn start_y(&self) -> usize {
+            self.start_y
+        }
+
+        /// Sets the start of this [`Maze`].
+        ///
+        /// # Errors
+        ///
+        /// This function will return an error if starting position is on a wall.
+        pub fn set_start(mut self, start_x: usize, start_y: usize) -> Result<Self, String> {
+            Self::validate_start(&self.map, start_x, start_y)?;
+            self.start_x = start_x;
+            self.start_y = start_y;
+            Ok(self)
+        }
+
+        fn validate_start(
+            map: &[Vec<MazeCell>],
+            start_x: usize,
+            start_y: usize,
+        ) -> Result<(), String> {
+            if let Some(row_vec) = map.get(start_y) {
+                if let Some(value) = row_vec.get(start_x) {
+                    match &value {
+                        MazeCell::Wall => {
+                            Err("Starting position must not be on a wall!".to_string())
+                        }
+                        MazeCell::Floor(_) => Ok(()),
+                    }
+                } else {
+                    Err("start_x out of bounds!".to_string())
+                }
+            } else {
+                Err("start_y out of bounds!".to_string())
+            }
+        }
     }
 
     impl fmt::Display for Maze {
@@ -252,7 +291,9 @@ fn main() {
 
     mazes.push(
         Maze::new_from_str_array(vec![" X ", "X X", "  X"], 1, 1)
-            .expect("Error while creating maze!"),
+            .expect("Error while creating maze!")
+            .set_start(1, 2)
+            .expect("Error on update starting position"),
     );
 
     mazes.push(
@@ -292,7 +333,14 @@ fn main() {
     );
 
     for mut maze in mazes {
-        println!("Maze:\n{}", maze);
+        println!(
+            "Maze: width: {}, height: {}, start: (x:{}|y:{})\n{}",
+            maze.width(),
+            maze.height(),
+            maze.start_x(),
+            maze.start_y(),
+            maze
+        );
 
         if let Ok(true) = maze.solve() {
             println!("Solution:\n{}", maze);
