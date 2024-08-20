@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 enum MazeCell {
     #[default]
     Wall,
@@ -14,9 +14,17 @@ impl MazeCell {
             MazeCell::Floor(f) => f.as_char(),
         }
     }
+
+    fn from_bool(value: bool) -> Self {
+        if value {
+            MazeCell::Floor(FloorType::default())
+        } else {
+            MazeCell::default()
+        }
+    }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 enum FloorType {
     #[default]
     Floor,
@@ -37,14 +45,13 @@ impl FloorType {
 #[derive(Debug)]
 struct Maze {
     /// `false` represents walls, `true` represents floor
-    map: Vec<Vec<bool>>, // false represents walls, true represents floor
+    map: Vec<Vec<MazeCell>>, // false represents walls, true represents floor
     width: usize,
     height: usize,
     start_x: usize,
     start_y: usize,
 
     visited: Option<Vec<Vec<bool>>>,
-    path_map: Option<Vec<Vec<bool>>>,
 }
 
 impl Maze {
@@ -54,7 +61,7 @@ impl Maze {
     const INPUT_FLOOR: char = ' ';
 
     /// Creates a new [`Maze`].
-    fn new(mut map: Vec<Vec<bool>>, start_x: usize, start_y: usize) -> Result<Maze, String> {
+    fn new(mut map: Vec<Vec<MazeCell>>, start_x: usize, start_y: usize) -> Result<Maze, String> {
         let width = map.iter().map(|row| row.len()).max().unwrap_or_default();
 
         let height = map.len();
@@ -65,12 +72,12 @@ impl Maze {
 
         // make sure all rows are the same length
         for row in map.iter_mut() {
-            row.resize(width, false)
+            row.resize(width, MazeCell::default())
         }
 
         if let Some(row_vec) = map.get(start_y) {
-            if let Some(&value) = row_vec.get(start_x) {
-                if !value {
+            if let Some(value) = row_vec.get(start_x) {
+                if value == &MazeCell::Wall {
                     return Err("Starting position must not be on a wall!".to_string());
                 }
             } else {
@@ -88,21 +95,32 @@ impl Maze {
             start_y,
 
             visited: None,
-            path_map: None,
         })
     }
 
+    fn new_from_bool_array(
+        map: Vec<Vec<bool>>,
+        start_x: usize,
+        start_y: usize,
+    ) -> Result<Maze, String> {
+        let new_map = map
+            .into_iter()
+            .map(|row| row.into_iter().map(MazeCell::from_bool).collect())
+            .collect();
+        Maze::new(new_map, start_x, start_y)
+    }
+
     fn new_from_str_array(map: Vec<&str>, start_x: usize, start_y: usize) -> Result<Maze, String> {
-        let grid: Result<Vec<Vec<bool>>, String> = map
+        let grid: Result<Vec<Vec<MazeCell>>, String> = map
             .iter()
             .map(|&row| {
                 row.chars()
                     .map(|c| match c {
-                        Maze::INPUT_FLOOR => Ok(true), // ' ' -> true
-                        Maze::INPUT_WALL => Ok(false), // 'X' -> false
+                        Maze::INPUT_FLOOR => Ok(MazeCell::Floor(FloorType::default())), // ' ' -> true
+                        Maze::INPUT_WALL => Ok(MazeCell::Wall), // 'X' -> false
                         _ => Err(format!("Unknown character '{}' in provided maze data!", c)),
                     })
-                    .collect::<Result<Vec<bool>, String>>() // Collect to Result<Vec<bool>, String>
+                    .collect::<Result<Vec<MazeCell>, String>>() // Collect to Result<Vec<bool>, String>
             })
             .collect(); // Collect to Result<Vec<Vec<bool>>, String>
 
@@ -118,25 +136,22 @@ impl Maze {
     }
 
     fn solve(&mut self) -> Result<bool, String> {
-        self.path_map = Some(vec![vec![false; self.width]; self.height]);
         self.visited = Some(vec![vec![false; self.width]; self.height]);
         self.solve_from(self.start_x, self.start_y)
     }
 
     fn solve_from(&mut self, x: usize, y: usize) -> Result<bool, String> {
-        if let (Some(&value), Some(visited), Some(path)) = (
-            self.map.get(y).and_then(|row| row.get(x)),
+        if let (Some(cell), Some(visited)) = (
+            self.map.get_mut(y).and_then(|row| row.get_mut(x)),
             self.visited
                 .as_mut()
                 .and_then(|v| v.get_mut(y).and_then(|row| row.get_mut(x))),
-            self.path_map
-                .as_mut()
-                .and_then(|v| v.get_mut(y).and_then(|row| row.get_mut(x))),
         ) {
-            if !value {
-                // on Wall
+            if cell == &MazeCell::Wall {
+                // on wall
                 return Ok(false);
             }
+
             if *visited {
                 // already visited
                 return Ok(false);
@@ -146,7 +161,7 @@ impl Maze {
 
             if x == 0 || x >= self.width - 1 || y == 0 || y >= self.height - 1 {
                 // found edge (finish)
-                *path = true;
+                *cell = MazeCell::Floor(FloorType::Path);
                 return Ok(true);
             }
 
@@ -158,13 +173,10 @@ impl Maze {
                 (x, y + 1),
             ] {
                 if self.solve_from(next_x, next_y)? {
-                    //*path = true;  // here not possible because of borrow checker
-                    if let Some(p) = self
-                        .path_map
-                        .as_mut()
-                        .and_then(|v| v.get_mut(y).and_then(|row| row.get_mut(x)))
-                    {
-                        *p = true;
+                    //*cell = MazeCell::Floor(FloorType::Path);  // here not possible because of borrow checker
+
+                    if let Some(cell) = self.map.get_mut(y).and_then(|row| row.get_mut(x)) {
+                        *cell = MazeCell::Floor(FloorType::Path);
                         return Ok(true);
                     } else {
                         return Err(format!("Starting position ({}, {}) out of bounds", x, y));
@@ -183,28 +195,14 @@ impl fmt::Display for Maze {
         let mut s = String::new();
 
         for (y, row) in self.map.iter().enumerate() {
-            for (x, &cell) in row.iter().enumerate() {
-                let symbol = if x == self.start_x && y == self.start_y {
-                    MazeCell::Floor(FloorType::Start).as_char()
-                } else if self
-                    .path_map
-                    .as_ref()
-                    .and_then(|map| map.get(y))
-                    .and_then(|row| row.get(x))
-                    == Some(&true)
-                {
-                    MazeCell::Floor(FloorType::Path).as_char()
+            for (x, cell) in row.iter().enumerate() {
+                if x == self.start_x && y == self.start_y {
+                    s.push(FloorType::Start.as_char())
                 } else {
-                    match cell {
-                        true => MazeCell::Floor(FloorType::default()).as_char(),
-                        false => MazeCell::Wall.as_char(),
-                    }
-                };
-                s.push(symbol);
+                    s.push(cell.as_char())
+                }
             }
-            if y < self.height - 1 {
-                s.push('\n');
-            }
+            s.push('\n');
         }
 
         write!(f, "{}", s)
@@ -215,7 +213,7 @@ fn main() {
     let mut mazes = Vec::new();
 
     mazes.push(
-        Maze::new(
+        Maze::new_from_bool_array(
             vec![
                 vec![true, false, true],
                 vec![false, true, false],
